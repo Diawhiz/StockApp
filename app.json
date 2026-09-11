@@ -21,6 +21,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "73a86b8e-f91a-4a44-be96-40fffc3a0e13"
+      }
+    },
+    "owner": "diawhiz"
   }
 }
