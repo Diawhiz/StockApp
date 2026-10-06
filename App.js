@@ -228,6 +228,7 @@ const VendorScreen = ({ route, navigation }) => {
   const [newExpected, setNewExpected] = useState('');
   const [newActual, setNewActual] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteItemId, setDeleteItemId] = useState(null);
   const copyVendorStock = async () => {
     if (!vendor) return;
     const text = formatVendorStock(vendor);
@@ -312,13 +313,19 @@ const VendorScreen = ({ route, navigation }) => {
   };
 
   const removeItem = (itemId) => {
+    setDeleteItemId(itemId);
+  };
+
+  const confirmRemoveItem = () => {
     setVendors(vendors.map(v => {
       if (v.id === vendorId) {
-        return { ...v, items: v.items.filter(i => i.id !== itemId) };
+        return { ...v, items: v.items.filter(i => i.id !== deleteItemId) };
       }
       return v;
     }));
+    setDeleteItemId(null);
   };
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
@@ -451,6 +458,42 @@ const VendorScreen = ({ route, navigation }) => {
         </View>
       </Modal>
 
+      {/* Item Delete Confirmation Modal */}
+      <Modal
+        visible={deleteItemId !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteItemId(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="warning-outline" size={36} color={COLORS.danger} />
+            </View>
+            <Text style={styles.modalTitle}>Delete Item</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete "{vendor.items.find(i => i.id === deleteItemId)?.name}"? This cannot be undone.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setDeleteItemId(null)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalDeleteBtn}
+                onPress={confirmRemoveItem}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={styles.modalDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
