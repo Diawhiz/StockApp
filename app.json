@@ -27,6 +27,9 @@
         "projectId": "aa29b1e1-45a3-4f61-a684-23228d023647"
       }
     },
-    "owner": "diawhiz"
+    "owner": "diawhiz",
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }
