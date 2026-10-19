@@ -23,6 +23,13 @@ import { formatNaira, parseNumber } from '../../utils/currency';
 import { useAlert } from '../../context/AlertContext';
 import { useTheme } from '../../context/ThemeContext';
 import { SPACING, RADIUS } from '../../styles/theme';
+import { ExcelImportModal } from './ExcelImportModal';
+import { downloadExcelTemplate } from '../../utils/excelParser';
+import {
+  executeStockImport,
+  getLastActiveImport,
+  undoLastImport,
+} from '../../database/stockImportRepo';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -43,6 +50,86 @@ export function OriginalInventoryManager({ vendors = [], onReload }) {
 
   // Form states per vendor for adding items
   const [itemForms, setItemForms] = useState({});
+
+  // Excel Import state
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [hasUndoImport, setHasUndoImport] = useState(false);
+
+  React.useEffect(() => {
+    checkUndoStatus();
+  }, [vendors]);
+
+  const checkUndoStatus = async () => {
+    try {
+      const active = await getLastActiveImport();
+      setHasUndoImport(!!active);
+    } catch {
+      setHasUndoImport(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      showToast('Preparing template...');
+      await downloadExcelTemplate();
+    } catch (err) {
+      showAlert({
+        title: 'Download Failed',
+        message: err.message || 'Could not download template.',
+        variant: 'error',
+      });
+    }
+  };
+
+  const handleImportCommit = async (importParams) => {
+    const summary = await executeStockImport(importParams);
+    await showAlert({
+      title: 'Import Successful',
+      message:
+        `Excel Stock Import Complete!\n\n` +
+        `• Vendors Added: ${summary.vendorsAdded}\n` +
+        `• Items Added: ${summary.itemsAdded}\n` +
+        `• Stock Rows Updated: ${summary.itemsUpdated}\n` +
+        `• Units Processed: ${summary.totalUnits}\n` +
+        `• Rows Skipped: ${summary.rowsSkipped}\n` +
+        `• Mode: ${summary.mode.toUpperCase()}`,
+      variant: 'success',
+    });
+    onReload();
+    checkUndoStatus();
+  };
+
+  const handleUndoImport = async () => {
+    const confirmed = await showConfirm({
+      title: 'Undo Last Import',
+      message:
+        'Are you sure you want to reverse the most recent Excel import? ' +
+        'This will restore stock quantities and remove items created solely by that import.',
+      confirmText: 'Undo Import',
+      cancelText: 'Cancel',
+      isDestructive: true,
+    });
+
+    if (confirmed) {
+      try {
+        const undone = await undoLastImport();
+        showToast('Last import successfully reversed!');
+        await showAlert({
+          title: 'Import Reversed',
+          message: `The import from ${new Date(undone.timestamp).toLocaleString()} has been undone.`,
+          variant: 'info',
+        });
+        onReload();
+        checkUndoStatus();
+      } catch (err) {
+        showAlert({
+          title: 'Undo Failed',
+          message: err.message || 'Could not undo the last import.',
+          variant: 'error',
+        });
+      }
+    }
+  };
 
   const toggleVendor = (vendorId) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -229,6 +316,47 @@ export function OriginalInventoryManager({ vendors = [], onReload }) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Excel Import Bar */}
+      <Card style={styles.importActionCard}>
+        <View style={styles.importHeaderRow}>
+          <View style={styles.importHeaderTitle}>
+            <Ionicons name="cube" size={18} color={theme.primary} />
+            <Text style={[styles.importSectionTitle, { color: theme.text }]}>Excel Stock Import</Text>
+          </View>
+
+          {hasUndoImport && (
+            <TouchableOpacity
+              style={[styles.undoBtn, { borderColor: theme.dangerLight, backgroundColor: theme.dangerLight }]}
+              onPress={handleUndoImport}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-undo" size={14} color={theme.danger} />
+              <Text style={[styles.undoBtnText, { color: theme.danger }]}>Undo Last Import</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.importButtonsRow}>
+          <TouchableOpacity
+            style={[styles.importMainBtn, { backgroundColor: theme.primary }]}
+            onPress={() => setImportModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.importMainBtnText}>Import Excel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.templateBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
+            onPress={handleDownloadTemplate}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="download-outline" size={18} color={theme.text} />
+            <Text style={[styles.templateBtnText, { color: theme.text }]}>Download Template</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
 
       {/* Add Vendor Form & Copy All Header */}
       <Card style={styles.addVendorCard}>
@@ -506,6 +634,14 @@ export function OriginalInventoryManager({ vendors = [], onReload }) {
           })
         )}
       </View>
+
+      {/* Excel Import Modal */}
+      <ExcelImportModal
+        visible={importModalVisible}
+        onClose={() => setImportModalVisible(false)}
+        existingVendors={vendors}
+        onImportCommit={handleImportCommit}
+      />
     </View>
   );
 }
@@ -710,5 +846,69 @@ const styles = StyleSheet.create({
     width: 30,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  importActionCard: {
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  importHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  importHeaderTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  importSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  undoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    gap: 4,
+  },
+  undoBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  importButtonsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  importMainBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 42,
+    borderRadius: RADIUS.md,
+    gap: 6,
+  },
+  importMainBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  templateBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 42,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    gap: 6,
+  },
+  templateBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
