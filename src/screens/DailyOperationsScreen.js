@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { DeliveryForm } from '../components/operations/DeliveryForm';
 import { ExpenseForm } from '../components/operations/ExpenseForm';
 import { DeliveredOrdersList } from '../components/operations/DeliveredOrdersList';
@@ -69,6 +69,7 @@ export function DailyOperationsScreen() {
       keyboardShouldPersistTaps="handled"
     >
       {/* 1. Add / Edit Delivery Form */}
+      <Text style={[styles.screenTitle, { color: theme.text }]}>Daily Operations</Text>
       <DeliveryForm
         vendors={vendors}
         editingDelivery={editingDelivery}
@@ -107,5 +108,11 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING.lg,
     paddingBottom: SPACING.xxl * 2,
+  },
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: SPACING.md,
   },
 });

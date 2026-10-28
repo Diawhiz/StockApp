@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { ScrollView, StyleSheet, RefreshControl, Text } from 'react-native';
 import { ReconciliationCard } from '../components/reports/ReconciliationCard';
 import { ReportView } from '../components/reports/ReportView';
 import { LoadingSpinner } from '../components/common/UIComponents';
@@ -59,6 +59,7 @@ export function SummaryReportScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
       }
     >
+      <Text style={[styles.screenTitle, { color: theme.text }]}>Summary</Text>
       <ReconciliationCard totalSales={totalSales} totalExpenses={totalExpenses} />
       <ReportView date={selectedDate} deliveries={deliveries} expenses={expenses} />
     </ScrollView>
@@ -72,5 +73,11 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING.lg,
     paddingBottom: SPACING.xxl * 2,
+  },
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: SPACING.md,
   },
 });

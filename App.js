@@ -2,12 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { DateProvider } from './src/context/DateContext';
 import { AlertProvider } from './src/context/AlertContext';
 import { GlobalModals } from './src/components/common/Modals';
 import { MainLayout } from './src/components/navigation/MainLayout';
+import { VendorDetailScreen } from './src/screens/VendorDetailScreen';
+import { navRef } from './src/navigation/navRef';
 import { getDatabase } from './src/database/db';
+
+const Stack = createNativeStackNavigator();
 
 function RootApp() {
   const { isDark, theme } = useTheme();
@@ -50,7 +56,33 @@ function RootApp() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <MainLayout />
+      <NavigationContainer
+        ref={navRef}
+        theme={{
+          ...(isDark ? DarkTheme : DefaultTheme),
+          colors: {
+            ...(isDark ? DarkTheme : DefaultTheme).colors,
+            primary: theme.primary,
+            background: theme.background,
+            card: theme.surface,
+            text: theme.text,
+            border: theme.border,
+            notification: theme.danger,
+          },
+        }}
+      >
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Main" component={MainLayout} />
+          <Stack.Screen
+            name="VendorDetail"
+            component={VendorDetailScreen}
+            options={{
+              animation: 'slide_from_right',
+              fullScreenGestureEnabled: true,
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
       <GlobalModals />
     </>
   );

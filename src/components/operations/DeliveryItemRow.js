@@ -51,9 +51,9 @@ export function DeliveryItemRow({
   }));
 
   const itemOptions = vendorItems.map((it) => ({
-    label: `${it.name} (Qty: ${it.actual})`,
+    label: `${it.name} (Qty: ${it.expected})`,
     value: it.id,
-    subtitle: `Price: ${formatNaira(it.price)} | Act: ${it.actual}, Exp: ${it.expected}`,
+    subtitle: `Price: ${formatNaira(it.price)} | Expected stock: ${it.expected}`,
     rawItem: it,
   }));
 
@@ -113,7 +113,7 @@ export function DeliveryItemRow({
             : loadingItems
             ? 'Loading in-stock items...'
             : vendorItems.length === 0
-            ? 'No items with actual stock > 0'
+            ? 'No items in stock'
             : 'Select in-stock item...'
         }
         disabled={!row.vendor_id || vendorItems.length === 0 || loadingItems}

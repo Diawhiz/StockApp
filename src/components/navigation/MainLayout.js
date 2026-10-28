@@ -29,7 +29,7 @@ export function MainLayout() {
     },
     {
       id: 'summary',
-      label: 'Summary & Report',
+      label: 'Summary',
       fullLabel: 'Summary & Report',
       icon: 'receipt-outline',
       activeIcon: 'receipt',
@@ -56,27 +56,28 @@ export function MainLayout() {
             return (
               <TouchableOpacity
                 key={tab.id}
-                style={[
-                  styles.tabItem,
-                  isActive && {
-                    backgroundColor: theme.primaryLight,
-                    borderRadius: RADIUS.md,
-                  },
-                ]}
+                style={styles.tabItem}
                 onPress={() => setActiveTab(tab.id)}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name={isActive ? tab.activeIcon : tab.icon}
-                  size={20}
-                  color={isActive ? theme.primary : theme.textMuted}
-                />
+                <View
+                  style={[
+                    styles.tabIcon,
+                    isActive && { backgroundColor: theme.primaryLight },
+                  ]}
+                >
+                  <Ionicons
+                    name={isActive ? tab.activeIcon : tab.icon}
+                    size={19}
+                    color={isActive ? theme.primary : theme.textMuted}
+                  />
+                </View>
                 <Text
                   style={[
                     styles.tabLabel,
                     {
                       color: isActive ? theme.primary : theme.textMuted,
-                      fontWeight: isActive ? '700' : '500',
+                      fontWeight: isActive ? '600' : '500',
                     },
                   ]}
                   numberOfLines={1}
@@ -106,18 +107,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingTop: 6,
+    paddingBottom: 8,
     paddingHorizontal: 8,
     borderTopWidth: 1,
-    minHeight: 58,
+    minHeight: 62,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    marginHorizontal: 4,
-    gap: 3,
+    gap: 4,
+  },
+  tabIcon: {
+    width: 44,
+    height: 28,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabLabel: {
     fontSize: 11,

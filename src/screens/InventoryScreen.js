@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, StyleSheet, RefreshControl, View } from 'react-native';
-import { Badge } from '../components/common/UIComponents';
-import { OriginalInventoryManager } from '../components/inventory/OriginalInventoryManager';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ScrollView, StyleSheet, RefreshControl, Text } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LoadingSpinner } from '../components/common/UIComponents';
+import { OriginalInventoryManager } from '../components/inventory/OriginalInventoryManager';
 import { getAllVendorsWithItems } from '../database/vendorsRepo';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING } from '../styles/theme';
@@ -13,6 +13,7 @@ export function InventoryScreen() {
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const firstLoadDone = useRef(false);
 
   const loadVendors = useCallback(async () => {
     try {
@@ -23,12 +24,20 @@ export function InventoryScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      firstLoadDone.current = true;
     }
   }, []);
 
   useEffect(() => {
     loadVendors();
   }, [loadVendors]);
+
+  // Refetch after returning from a vendor detail screen
+  useFocusEffect(
+    useCallback(() => {
+      if (firstLoadDone.current) loadVendors();
+    }, [loadVendors])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -48,11 +57,9 @@ export function InventoryScreen() {
       }
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.topBadgeRow}>
-        <Badge label="Inventory" variant="warning" />
-      </View>
+      <Text style={[styles.screenTitle, { color: theme.text }]}>Inventory</Text>
 
-      {/* Original Inventory Manager: Search, Add Vendor, Vendor Cards with Exp, Act, Miss, inline editing */}
+      {/* Inventory: search, Excel import, vendor list (tap a vendor to manage it) */}
       <OriginalInventoryManager vendors={vendors} onReload={loadVendors} />
     </ScrollView>
   );
@@ -66,7 +73,10 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     paddingBottom: SPACING.xxl * 2,
   },
-  topBadgeRow: {
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
     marginBottom: SPACING.md,
   },
 });

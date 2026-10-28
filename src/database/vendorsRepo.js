@@ -24,7 +24,21 @@ export async function getAllVendorsWithItems() {
     ...v,
     items: itemMap.get(v.id) || [],
   }));
-}export async function getAllVendors() {
+}
+
+export async function getVendorWithItems(vendorId) {
+  const db = await getDatabase();
+  const vendor = await db.getFirstAsync('SELECT * FROM vendors WHERE id = ?', [vendorId]);
+  if (!vendor) return null;
+  const items = await db.getAllAsync(
+    `SELECT *, (COALESCE(expected, 0) - COALESCE(actual, 0)) AS missing
+     FROM vendor_items WHERE vendor_id = ? ORDER BY name COLLATE NOCASE ASC`,
+    [vendorId]
+  );
+  return { ...vendor, items };
+}
+
+export async function getAllVendors() {
   const db = await getDatabase();
   return await db.getAllAsync('SELECT * FROM vendors ORDER BY name COLLATE NOCASE ASC');
 }

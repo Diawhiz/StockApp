@@ -226,6 +226,21 @@ export async function updateDelivery(id, { date, location, rider, product, price
 }
 
 /**
+ * Distinct rider names ordered by most recent delivery first.
+ */
+export async function getRecentRiders() {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync(
+    `SELECT rider, MAX(created_at) AS last_used
+     FROM deliveries
+     GROUP BY TRIM(rider)
+     ORDER BY last_used DESC
+     LIMIT 15`
+  );
+  return rows.map((r) => r.rider.trim()).filter(Boolean);
+}
+
+/**
  * Deletes a delivery and restores both actual & expected stock back to vendor items.
  */
 export async function deleteDelivery(id) {

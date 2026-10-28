@@ -30,7 +30,8 @@
     "owner": "diawhiz",
     "plugins": [
       "expo-sqlite",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-status-bar"
     ]
   }
 }

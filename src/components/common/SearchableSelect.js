@@ -20,6 +20,8 @@ export function SearchableSelect({
   options = [], // [{ label: string, value: string, subtitle?: string }]
   selectedValue,
   onSelect,
+  onOtherPress,
+  onClear,
   disabled = false,
   error,
   style,
@@ -85,6 +87,15 @@ export function SearchableSelect({
           size={18}
           color={disabled ? theme.textMuted : theme.textSecondary}
         />
+        {onClear && selectedValue ? (
+          <TouchableOpacity
+            onPress={onClear}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ marginLeft: 6 }}
+          >
+            <Ionicons name="close-circle" size={16} color={theme.textMuted} />
+          </TouchableOpacity>
+        ) : null}
       </TouchableOpacity>
       {error && <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>}
 
@@ -172,6 +183,24 @@ export function SearchableSelect({
                       </TouchableOpacity>
                     );
                   }}
+                  ListFooterComponent={
+                    onOtherPress && modalVisible ? (
+                      <TouchableOpacity
+                        style={[styles.optionItem, { borderBottomColor: theme.border }]}
+                        onPress={() => {
+                          setModalVisible(false);
+                          onOtherPress();
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons name="create-outline" size={16} color={theme.textSecondary} style={{ marginRight: 8 }} />
+                          <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>
+                            Other — type manually
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : null
+                  }
                 />
               </SafeAreaView>
             </TouchableWithoutFeedback>
@@ -187,20 +216,19 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   selector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
-    height: 46,
+    height: 48,
   },
   selectorText: {
     fontSize: 15,

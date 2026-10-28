@@ -54,8 +54,7 @@ export function Header() {
           onPress={goToPrevDay}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={18} color={theme.text} />
-          <Text style={[styles.dateNavText, { color: theme.text }]}>Prev</Text>
+          <Ionicons name="chevron-back" size={16} color={theme.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -63,11 +62,10 @@ export function Header() {
           onPress={goToToday}
           activeOpacity={0.7}
         >
-          <Ionicons name="calendar-outline" size={16} color={theme.primary} style={{ marginRight: 6 }} />
           <Text style={[styles.dateText, { color: theme.text }]}>
             {formatDisplayDate(selectedDate)}
           </Text>
-          <Text style={[styles.todayHint, { color: theme.primary }]}> (Today)</Text>
+          <Text style={[styles.todayHint, { color: theme.primary, backgroundColor: theme.primaryLight }]}>Today</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -75,8 +73,7 @@ export function Header() {
           onPress={goToNextDay}
           activeOpacity={0.7}
         >
-          <Text style={[styles.dateNavText, { color: theme.text }]}>Next</Text>
-          <Ionicons name="chevron-forward" size={18} color={theme.text} />
+          <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -138,36 +135,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     marginVertical: 4,
   },
   dateNavBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    width: 32,
+    height: 32,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-  },
-  dateNavText: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginHorizontal: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 4,
   },
   dateText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   todayHint: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
   },
 });

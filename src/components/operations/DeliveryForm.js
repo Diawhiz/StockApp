@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Badge, InputField, Button } from '../common/UIComponents';
+import { Ionicons } from '@expo/vector-icons';
+import { Card, InputField, Button } from '../common/UIComponents';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { DeliveryItemRow } from './DeliveryItemRow';
-import { createDelivery, updateDelivery } from '../../database/deliveriesRepo';
+import { createDelivery, updateDelivery, getRecentRiders } from '../../database/deliveriesRepo';
+import {
+  applyStickyRiderAfterSave,
+  clearStickyRider,
+  getStickyRider,
+} from '../../utils/riderPrefs';
 import { useDate } from '../../context/DateContext';
 import { useAlert } from '../../context/AlertContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -20,12 +27,36 @@ export function DeliveryForm({
 
   const [location, setLocation] = useState('');
   const [rider, setRider] = useState('');
+  const [manualRider, setManualRider] = useState(false);
+  const [recentRiders, setRecentRiders] = useState([]);
+  const [sticky, setSticky] = useState(null);
   const [product, setProduct] = useState('');
   const [price, setPrice] = useState('');
   const [fee, setFee] = useState('');
   const [itemRows, setItemRows] = useState([]);
   const [priceOverridden, setPriceOverridden] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const loadRiderPrefs = useCallback(async () => {
+    try {
+      const [riders, stickyRider] = await Promise.all([getRecentRiders(), getStickyRider()]);
+      setRecentRiders(riders);
+      setSticky(stickyRider);
+    } catch (e) {
+      console.error('Failed to load rider preferences', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRiderPrefs();
+  }, [loadRiderPrefs]);
+
+  // Prefill the sticky rider on a fresh (non-edit) form
+  useEffect(() => {
+    if (!editingDelivery && sticky && !rider) {
+      setRider(sticky.name);
+    }
+  }, [sticky, editingDelivery, rider]);
 
   // When editingDelivery changes, populate form
   useEffect(() => {
@@ -53,12 +84,13 @@ export function DeliveryForm({
 
   const resetForm = () => {
     setLocation('');
-    setRider('');
     setProduct('');
     setPrice('');
     setFee('');
     setItemRows([]);
     setPriceOverridden(false);
+    setManualRider(false);
+    // Rider intentionally persists: sticky rider prefills the next orders
   };
 
   // Recalculate auto-filled Product and Price when itemRows change
@@ -150,6 +182,9 @@ export function DeliveryForm({
         if (onCancelEdit) onCancelEdit();
       } else {
         await createDelivery(payload);
+        const nextSticky = await applyStickyRiderAfterSave(rid);
+        setSticky(nextSticky);
+        await loadRiderPrefs();
         showToast('Delivery added successfully!');
         resetForm();
       }
@@ -168,15 +203,33 @@ export function DeliveryForm({
 
   const hasItemRows = itemRows.length > 0;
 
+  const riderOptions = (() => {
+    const seen = new Set();
+    const opts = [];
+    const push = (name, subtitle) => {
+      const key = name.toLowerCase();
+      if (!name || seen.has(key)) return;
+      seen.add(key);
+      opts.push({ label: name, value: name, subtitle });
+    };
+    if (sticky) push(sticky.name, `Active · auto-fills the next ${sticky.remaining} orders`);
+    recentRiders.forEach((name) => push(name));
+    if (rider && !seen.has(rider.toLowerCase())) push(rider);
+    return opts;
+  })();
+
+  const handleForgetRider = async () => {
+    await clearStickyRider();
+    setSticky(null);
+    setRider('');
+  };
+
   return (
     <Card style={styles.card}>
-      {/* Header with Orders Badge */}
-      <View style={styles.badgeRow}>
-        <Badge label="Orders" variant="primary" />
-        <Text style={[styles.cardTitle, { color: theme.text }]}>
-          {editingDelivery ? 'Edit Delivery' : 'Add Delivery'}
-        </Text>
-      </View>
+      {/* Card title */}
+      <Text style={[styles.cardTitle, { color: theme.text }]}>
+        {editingDelivery ? 'Edit Delivery' : 'Add Delivery'}
+      </Text>
 
       <InputField
         label="Location"
@@ -185,12 +238,46 @@ export function DeliveryForm({
         onChangeText={setLocation}
       />
 
-      <InputField
-        label="Rider"
-        placeholder="e.g. John Doe"
-        value={rider}
-        onChangeText={setRider}
-      />
+      {manualRider ? (
+        <View style={styles.riderRow}>
+          <InputField
+            label="Rider"
+            placeholder="e.g. John Doe"
+            value={rider}
+            onChangeText={setRider}
+            style={{ flex: 1, marginBottom: 0 }}
+          />
+          <TouchableOpacity
+            style={[styles.riderToggleBtn, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]}
+            onPress={() => setManualRider(false)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="list-outline" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View>
+          <SearchableSelect
+            label="Rider"
+            placeholder="Select rider..."
+            options={riderOptions}
+            selectedValue={rider}
+            onSelect={(value) => setRider(value)}
+            onOtherPress={() => setManualRider(true)}
+            onClear={() => setRider('')}
+          />
+          {sticky && sticky.name === rider && !editingDelivery ? (
+            <View style={styles.stickyHintRow}>
+              <Text style={[styles.stickyHint, { color: theme.textMuted }]}>
+                Auto-filled for the next {sticky.remaining} {sticky.remaining === 1 ? 'order' : 'orders'}
+              </Text>
+              <TouchableOpacity onPress={handleForgetRider} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={[styles.stickyForget, { color: theme.primary }]}>Forget</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+      )}
 
       {/* Product field is hidden when item rows are active */}
       {!hasItemRows ? (
@@ -204,7 +291,7 @@ export function DeliveryForm({
       ) : (
         <View style={[styles.autoProductBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
           <Text style={[styles.autoProductLabel, { color: theme.textMuted }]}>
-            AUTO-FILLED PRODUCT DETAILS:
+            Product details
           </Text>
           <Text style={[styles.autoProductText, { color: theme.text }]}>{product || 'Select items below'}</Text>
         </View>
@@ -214,14 +301,14 @@ export function DeliveryForm({
       <View style={[styles.itemsSection, { borderColor: theme.border }]}>
         <View style={styles.itemsSectionHeader}>
           <Text style={[styles.itemsSectionTitle, { color: theme.textSecondary }]}>
-            Order Items (Optional Stock Deduction)
+            Order items · optional stock deduction
           </Text>
           <TouchableOpacity
             style={[styles.addInventoryBtn, { backgroundColor: theme.primaryLight }]}
             onPress={handleAddRow}
           >
             <Text style={[styles.addInventoryBtnText, { color: theme.primary }]}>
-              + Add Product from Inventory
+              + Add product
             </Text>
           </TouchableOpacity>
         </View>
@@ -284,15 +371,40 @@ const styles = StyleSheet.create({
   card: {
     padding: SPACING.lg,
   },
-  badgeRow: {
+  riderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: SPACING.sm,
     marginBottom: SPACING.md,
+  },
+  riderToggleBtn: {
+    height: 46,
+    width: 46,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 0,
+  },
+  stickyHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: -6,
+    marginBottom: SPACING.md,
+    paddingHorizontal: 2,
+  },
+  stickyHint: {
+    fontSize: 12,
+  },
+  stickyForget: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
+    marginBottom: SPACING.md,
   },
   autoProductBox: {
     padding: SPACING.md,
@@ -302,8 +414,7 @@ const styles = StyleSheet.create({
   },
   autoProductLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontWeight: '600',
     marginBottom: 4,
   },
   autoProductText: {
@@ -325,8 +436,7 @@ const styles = StyleSheet.create({
   },
   itemsSectionTitle: {
     fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: '600',
   },
   addInventoryBtn: {
     paddingVertical: 6,

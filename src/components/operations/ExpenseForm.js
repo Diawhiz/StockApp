@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Card, Badge, InputField, Button } from '../common/UIComponents';
+import { Card, InputField, Button } from '../common/UIComponents';
 import { createExpense, updateExpense } from '../../database/expensesRepo';
 import { parseNumber } from '../../utils/currency';
 import { useDate } from '../../context/DateContext';
@@ -88,12 +88,9 @@ export function ExpenseForm({
 
   return (
     <Card style={styles.card}>
-      <View style={styles.badgeRow}>
-        <Badge label="Cost" variant="danger" />
-        <Text style={[styles.cardTitle, { color: theme.text }]}>
-          {editingExpense ? 'Edit Expense' : 'Add Expense'}
-        </Text>
-      </View>
+      <Text style={[styles.cardTitle, { color: theme.text }]}>
+        {editingExpense ? 'Edit Expense' : 'Add Expense'}
+      </Text>
 
       <InputField
         label="Description"
@@ -136,15 +133,10 @@ const styles = StyleSheet.create({
   card: {
     padding: SPACING.lg,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
+    marginBottom: SPACING.md,
   },
   actionButtonsRow: {
     flexDirection: 'row',

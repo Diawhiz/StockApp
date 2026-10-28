@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, EmptyState } from '../common/UIComponents';
 import { deleteDelivery } from '../../database/deliveriesRepo';
@@ -15,11 +15,21 @@ export function DeliveredOrdersList({
 }) {
   const { theme } = useTheme();
   const { showConfirm, showToast, showAlert } = useAlert();
+  const [orderQuery, setOrderQuery] = useState('');
 
   // Group deliveries by rider
   const riderGroups = useMemo(() => {
+    const q = orderQuery.trim().toLowerCase();
+    const visible = q
+      ? deliveries.filter(
+          (d) =>
+            (d.location || '').toLowerCase().includes(q) ||
+            (d.product || '').toLowerCase().includes(q) ||
+            (d.rider || '').toLowerCase().includes(q)
+        )
+      : deliveries;
     const map = new Map();
-    for (const d of deliveries) {
+    for (const d of visible) {
       const riderName = (d.rider || 'Unassigned').trim();
       if (!map.has(riderName)) {
         map.set(riderName, {
@@ -33,7 +43,7 @@ export function DeliveredOrdersList({
       group.orders.push(d);
     }
     return Array.from(map.values());
-  }, [deliveries]);
+  }, [deliveries, orderQuery]);
 
   const handleDelete = async (delivery) => {
     const confirmed = await showConfirm({
@@ -54,7 +64,7 @@ export function DeliveredOrdersList({
     }
   };
 
-  if (deliveries.length === 0) {
+  if (deliveries.length === 0 && riderGroups.length === 0) {
     return (
       <Card>
         <Text style={[styles.sectionHeading, { color: theme.text }]}>Delivered Orders</Text>
@@ -66,10 +76,31 @@ export function DeliveredOrdersList({
   return (
     <View style={styles.container}>
       <Text style={[styles.sectionHeading, { color: theme.text, marginBottom: SPACING.sm }]}>
-        Delivered Orders ({deliveries.length})
+        Delivered Orders ({riderGroups.reduce((acc, g) => acc + g.orders.length, 0)})
       </Text>
 
-      {riderGroups.map((group) => (
+      <View style={[styles.searchContainer, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+        <Ionicons name="search" size={16} color={theme.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={[styles.searchInput, { color: theme.text }]}
+          placeholder="Search orders by location, product, rider..."
+          placeholderTextColor={theme.textMuted}
+          value={orderQuery}
+          onChangeText={setOrderQuery}
+        />
+        {orderQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setOrderQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close-circle" size={16} color={theme.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {riderGroups.length === 0 ? (
+        <Card>
+          <EmptyState icon="search-outline" message="No orders match your search." />
+        </Card>
+      ) : (
+        riderGroups.map((group) => (
         <Card key={group.rider} style={styles.riderCard}>
           {/* Rider Header */}
           <View style={[styles.riderHeader, { borderBottomColor: theme.border }]}>
@@ -133,7 +164,8 @@ export function DeliveredOrdersList({
             ))}
           </View>
         </Card>
-      ))}
+        ))
+      )}
     </View>
   );
 }
@@ -145,6 +177,22 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    height: 42,
+    marginBottom: SPACING.md,
+  },
+  searchIcon: {
+    marginRight: SPACING.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
   },
   riderCard: {
     marginBottom: SPACING.md,
