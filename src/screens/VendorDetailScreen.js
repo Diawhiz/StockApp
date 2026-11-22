@@ -1,51 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { Card, EmptyState, LoadingSpinner } from '../components/common/UIComponents';
-import {
-  getVendorWithItems,
-  deleteVendor,
-  addVendorItem,
-  updateVendorItem,
-  deleteVendorItem,
-} from '../database/vendorsRepo';
-import { formatNaira, parseNumber } from '../utils/currency';
-import { buildVendorStockText } from '../utils/stockCopy';
 import { useAlert } from '../context/AlertContext';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, RADIUS } from '../styles/theme';
+import { formatNaira } from '../utils/currency';
+import { buildVendorStockText } from '../utils/stockCopy';
+
+// Helper: format number to Naira
+const formatNaira = (num) => {
+  if (num === undefined || num === null) return '0';
+  return Number(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 export function VendorDetailScreen({ route, navigation }) {
   const { vendorId } = route.params;
   const { theme } = useTheme();
-  const { showAlert, showConfirm, showPrompt, showToast } = useAlert();
+  const { showAlert, showToast } = useAlert();
 
   const [vendor, setVendor] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [form, setForm] = useState({ name: '', exp: '', act: '', price: '' });
-  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      // Import here to avoid circular deps
+      const { getVendorWithItems } = await import('../database/vendorsRepo');
       const data = await getVendorWithItems(vendorId);
       setVendor(data);
     } catch (e) {
       console.error('Failed to load vendor', e);
+      showAlert({ title: 'Error', message: e.message, variant: 'error' });
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [vendorId]);
 
@@ -66,85 +53,14 @@ export function VendorDetailScreen({ route, navigation }) {
     showToast(`Stock for ${vendor.name} Copied!`);
   };
 
-  const handleDeleteVendor = async () => {
-    const confirmed = await showConfirm({
-      title: 'Delete Vendor',
-      message: `Are you sure you want to delete "${vendor.name}" and all its inventory items? This cannot be undone.`,
-      confirmText: 'Delete Vendor',
-      isDestructive: true,
-    });
-    if (!confirmed) return;
-    try {
-      await deleteVendor(vendor.id);
-      showToast(`Vendor "${vendor.name}" deleted.`);
-      navigation.goBack();
-    } catch (e) {
-      showAlert({ title: 'Error', message: e.message, variant: 'error' });
-    }
-  };
-
-  const handleAddItem = async () => {
-    const trimmed = form.name.trim();
-    if (!trimmed) {
-      await showAlert({ title: 'Validation Error', message: 'Item name is required.', variant: 'warning' });
-      return;
-    }
-    try {
-      setAdding(true);
-      await addVendorItem(vendorId, {
-        name: trimmed,
-        price: parseNumber(form.price),
-        expected: parseInt(form.exp, 10) || 0,
-        actual: parseInt(form.act, 10) || 0,
-      });
-      setForm({ name: '', exp: '', act: '', price: '' });
-      showToast(`Item "${trimmed}" added!`);
-      load();
-    } catch (e) {
-      showAlert({ title: 'Error', message: e.message, variant: 'error' });
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const handleInlineItemUpdate = async (itemId, field, text) => {
-    try {
-      if (field === 'expected' || field === 'actual') {
-        await updateVendorItem(itemId, { [field]: parseInt(text, 10) || 0 });
-      } else if (field === 'price') {
-        await updateVendorItem(itemId, { price: parseNumber(text) });
-      }
-      load();
-    } catch (e) {
-      console.error('Failed to update item cell', e);
-    }
-  };
-
-  const handleDeleteItem = async (item) => {
-    const confirmed = await showConfirm({
-      title: 'Delete Item',
-      message: `Delete "${item.name}" from vendor stock?`,
-      confirmText: 'Delete Item',
-      isDestructive: true,
-    });
-    if (!confirmed) return;
-    try {
-      await deleteVendorItem(item.id);
-      showToast(`Item "${item.name}" removed.`);
-      load();
-    } catch (e) {
-      showAlert({ title: 'Error', message: e.message, variant: 'error' });
-    }
-  };
-
   if (loading) {
-    return <LoadingSpinner text="Loading vendor..." />;
+    return <Text>Loading vendor...</Text>;
   }
 
   if (!vendor) {
     return (
-      <View style={[styles.screen, { backgroundColor: theme.background }]}>
-        <EmptyState icon="help-circle-outline" message="Vendor not found." />
+      <View style={[styles.screen, { backgroundColor: theme.background }]}> 
+        <Text style={{ color: theme.text }}>Vendor not found.</Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
           <Text style={{ color: theme.primary, fontWeight: '700' }}>Go back</Text>
         </TouchableOpacity>
@@ -158,10 +74,7 @@ export function VendorDetailScreen({ route, navigation }) {
   const totalValue = vendor.items.reduce((acc, it) => acc + (it.price || 0) * (it.actual || 0), 0);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.screen}>
       {/* Top bar */}
       <View style={[styles.topBar, { backgroundColor: theme.headerBg, borderBottomColor: theme.border }]}>
         <TouchableOpacity
@@ -181,194 +94,93 @@ export function VendorDetailScreen({ route, navigation }) {
             <Ionicons name="copy-outline" size={16} color={theme.textSecondary} />
             <Text style={[styles.topActionText, { color: theme.textSecondary }]}>Copy Stock</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.topActionBtn, { borderColor: theme.dangerLight, backgroundColor: theme.dangerLight }]}
-            onPress={handleDeleteVendor}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="trash-outline" size={16} color={theme.danger} />
-          </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={theme.primary} />
+          <RefreshControl
+            onRefresh={() => { load(); }}
+            tintColor={theme.primary}
+          />
         }
       >
         {/* Vendor identity */}
         <Text style={[styles.vendorName, { color: theme.text }]}>{vendor.name}</Text>
+
         <View style={[styles.statsRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Stat label="Items" value={String(vendor.items.length)} color={theme.text} theme={theme} />
-          <Stat label="Expected" value={String(totalExpected)} color={theme.primary} theme={theme} />
-          <Stat label="Actual" value={String(totalActual)} color={theme.text} theme={theme} />
-          <Stat
-            label="Missing"
-            value={String(totalMissing)}
-            color={totalMissing > 0 ? theme.danger : theme.success}
-            theme={theme}
-            last
-          />
+          <Text style={[styles.statValue, { color: theme.text }]}>Items</Text>
+          <Text style={[styles.statValue, { color: theme.primary }]}>{vendor.items.length}</Text>
+          <Text style={[styles.statValue, { color: theme.text }]}>Expected</Text>
+          <Text style={[styles.statValue, { color: theme.primary }]}>{totalExpected}</Text>
+          <Text style={[styles.statValue, { color: theme.text }]}>Actual</Text>
+          <Text style={[styles.statValue, { color: theme.text }]}>{totalActual}</Text>
+          <Text style={[styles.statValue, { color: totalMissing > 0 ? theme.danger : theme.success }]}>Missing</Text>
+          <Text style={[styles.statValue, { color: theme.textSecondary }]}>Value</Text>
+          <Text style={{ fontWeight: '700', color: theme.text }}>{formatNaira(totalValue)}</Text>
         </View>
-        <Text style={[styles.valueText, { color: theme.textSecondary }]}>
-          Stock value: <Text style={{ fontWeight: '700', color: theme.text }}>{formatNaira(totalValue)}</Text>
-        </Text>
 
-        {/* Add product */}
-        <Card style={[styles.addCard, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Add Product</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
-            placeholder="Product name"
-            placeholderTextColor={theme.textMuted}
-            value={form.name}
-            onChangeText={(txt) => setForm((p) => ({ ...p, name: txt }))}
-          />
-          <View style={styles.inputRow}>
-            <TextInput
-              style={[styles.input, styles.inputFlex, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
-              placeholder="Expected"
-              placeholderTextColor={theme.textMuted}
-              keyboardType="numeric"
-              value={form.exp}
-              onChangeText={(txt) => setForm((p) => ({ ...p, exp: txt }))}
-            />
-            <TextInput
-              style={[styles.input, styles.inputFlex, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
-              placeholder="Actual"
-              placeholderTextColor={theme.textMuted}
-              keyboardType="numeric"
-              value={form.act}
-              onChangeText={(txt) => setForm((p) => ({ ...p, act: txt }))}
-            />
-            <TextInput
-              style={[styles.input, styles.inputFlex, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
-              placeholder="₦ Price"
-              placeholderTextColor={theme.textMuted}
-              keyboardType="numeric"
-              value={form.price}
-              onChangeText={(txt) => setForm((p) => ({ ...p, price: txt }))}
-            />
-          </View>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: theme.primary, opacity: adding ? 0.6 : 1 }]}
-            onPress={handleAddItem}
-            disabled={adding}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>Add to Stock</Text>
-          </TouchableOpacity>
-        </Card>
-
-        {/* Products */}
-        <Text style={[styles.listTitle, { color: theme.textSecondary }]}>
-          Products ({vendor.items.length})
-        </Text>
+        {/* Products list - read-only display */}
+        <Text style={[styles.listTitle, { color: theme.textSecondary }]}>Products ({vendor.items.length})</Text>
 
         {vendor.items.length === 0 ? (
-          <EmptyState icon="cube-outline" message="No products yet. Add the first one above." />
+          <Text style={{ color: theme.textMuted, fontStyle: 'italic', padding: 20 }}>
+            No products yet.
+          </Text>
         ) : (
-          <Card style={{ padding: 0, backgroundColor: theme.surface }}>
-            <View style={[styles.tableHeader, { borderBottomColor: theme.border }]}>
+          <View style={{ backgroundColor: theme.surface, borderRadius: 8, padding: 12 }}>
+            <View style={styles.tableHeader}>
               <Text style={[styles.thText, { flex: 2.2, color: theme.textMuted }]}>Item</Text>
-              <Text style={[styles.thText, { flex: 0.9, textAlign: 'center', color: theme.textMuted }]}>Exp</Text>
-              <Text style={[styles.thText, { flex: 0.9, textAlign: 'center', color: theme.textMuted }]}>Act</Text>
-              <Text style={[styles.thText, { flex: 0.9, textAlign: 'center', color: theme.textMuted }]}>Miss</Text>
-              <Text style={[styles.thText, { flex: 1.2, textAlign: 'right', color: theme.textMuted }]}>Price</Text>
-              <View style={{ width: 28 }} />
+              <Text style={[styles.thText, { flex: 0.8, textAlign: 'center', color: theme.textMuted }]}>Exp</Text>
+              <Text style={[styles.thText, { flex: 0.8, textAlign: 'center', color: theme.textMuted }]}>Act</Text>
+              <Text style={[styles.thText, { flex: 0.8, textAlign: 'center', color: theme.textMuted }]}>Miss</Text>
+              <Text style={[styles.thText, { flex: 1.3, textAlign: 'right', color: theme.textMuted }]}>Price</Text>
             </View>
 
             {vendor.items.map((item) => (
-              <View key={item.id} style={[styles.tableRow, { borderBottomColor: theme.divider }]}>
-                <TouchableOpacity
-                  style={{ flex: 2.2, paddingRight: 6 }}
-                  onPress={async () => {
-                    const newName = await showPrompt({
-                      title: `Rename: ${item.name}`,
-                      message: 'Enter new product name:',
-                      initialValue: item.name,
-                    });
-                    if (newName !== null && newName.trim()) {
-                      await updateVendorItem(item.id, { name: newName.trim() });
-                      load();
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.itemNameText, { color: theme.text }]} numberOfLines={2}>
-                    {item.name}
+              <View key={item.id} style={styles.tableRow}>
+                <Text style={[styles.itemNameText, { color: theme.text, flex: 2.2 }]} numberOfLines={2}>
+                  {item.name}
+                </Text>
+
+                <View style={[styles.cellWrapper, { flex: 0.8, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                  <Text style={[styles.cellInput, { color: theme.text, textAlign: 'center' }]}> 
+                    {item.expected}
                   </Text>
-                </TouchableOpacity>
-
-                <View style={[styles.cellWrapper, { flex: 0.9, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.cellInput, { color: theme.text }]}
-                    keyboardType="numeric"
-                    defaultValue={String(item.expected)}
-                    onEndEditing={(e) => handleInlineItemUpdate(item.id, 'expected', e.nativeEvent.text)}
-                  />
                 </View>
 
-                <View style={[styles.cellWrapper, { flex: 0.9, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.cellInput, { color: theme.text }]}
-                    keyboardType="numeric"
-                    defaultValue={String(item.actual)}
-                    onEndEditing={(e) => handleInlineItemUpdate(item.id, 'actual', e.nativeEvent.text)}
-                  />
+                <View style={[styles.cellWrapper, { flex: 0.8, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                  <Text style={[styles.cellInput, { color: theme.text, textAlign: 'center' }]}> 
+                    {item.actual}
+                  </Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.missBadge,
-                    { flex: 0.9, backgroundColor: item.missing > 0 ? theme.dangerLight : theme.successLight },
-                  ]}
-                >
+                <View style={[
+                  styles.missBadge, 
+                  { backgroundColor: item.missing > 0 ? theme.dangerLight : theme.successLight }
+                ]}>
                   <Text style={[styles.missText, { color: item.missing > 0 ? theme.danger : theme.success }]}>
                     {item.missing}
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  style={{ flex: 1.2, alignItems: 'flex-end', justifyContent: 'center' }}
-                  onPress={async () => {
-                    const newP = await showPrompt({
-                      title: `Edit Price: ${item.name}`,
-                      message: 'Enter unit price in ₦:',
-                      initialValue: String(item.price),
-                      keyboardType: 'numeric',
-                    });
-                    if (newP !== null) {
-                      handleInlineItemUpdate(item.id, 'price', newP);
-                    }
-                  }}
-                >
-                  <Text style={[styles.priceText, { color: theme.primary }]}>{formatNaira(item.price)}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.deleteItemBtn}
-                  onPress={() => handleDeleteItem(item)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close-circle" size={18} color={theme.textMuted} />
-                </TouchableOpacity>
+                <Text style={[styles.priceText, { color: theme.primary, flex: 1.3, textAlign: 'right' }]}>
+                  {formatNaira(item.price)}
+                </Text>
               </View>
             ))}
-          </Card>
+          </View>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
-function Stat({ label, value, color, theme, last }) {
+function Stat({ label, value, color, theme }) {
   return (
-    <View style={[styles.stat, !last && { borderRightWidth: 1, borderRightColor: theme.divider }]}>
+    <View style={styles.stat}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
     </View>
@@ -450,48 +262,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textTransform: 'uppercase',
   },
-  valueText: {
-    fontSize: 13,
-    marginBottom: SPACING.lg,
-  },
-  addCard: {
-    padding: SPACING.lg,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: SPACING.md,
-  },
-  input: {
-    height: 44,
-    borderWidth: 1.5,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    fontSize: 14,
-    marginBottom: SPACING.sm,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  inputFlex: {
-    flex: 1,
-    minWidth: 0,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    borderRadius: RADIUS.md,
-    gap: 6,
-    marginTop: SPACING.xs,
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
   listTitle: {
     fontSize: 13,
     fontWeight: '700',
@@ -550,11 +320,6 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  deleteItemBtn: {
-    width: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   backLink: {
     alignItems: 'center',
