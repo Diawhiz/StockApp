@@ -8,12 +8,6 @@ import { SPACING, RADIUS } from '../styles/theme';
 import { formatNaira } from '../utils/currency';
 import { buildVendorStockText } from '../utils/stockCopy';
 
-// Helper: format number to Naira
-const formatNaira = (num) => {
-  if (num === undefined || num === null) return '0';
-  return Number(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
 export function VendorDetailScreen({ route, navigation }) {
   const { vendorId } = route.params;
   const { theme } = useTheme();
