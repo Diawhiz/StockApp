@@ -17,6 +17,7 @@ const formatNaira = (num) => {
 
 export function InventoryScreen() {
   const { theme } = useTheme();
+  const styles = createStyles(theme);
 
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,7 +153,7 @@ export function InventoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
   },

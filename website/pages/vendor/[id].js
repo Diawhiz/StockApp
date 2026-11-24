@@ -1,14 +1,15 @@
-import { useState, useEffect, useParams } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 
 export default function VendorDetailPage() {
-  const { id } = useParams();
   const router = useRouter();
+  const { id } = router.query;
   const [vendor, setVendor] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!id) return;
     // Fetch vendor data from API
     fetch(`/api/vendors?vendorId=${id}`)
       .then(res => res.json())

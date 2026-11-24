@@ -17,6 +17,7 @@ const formatNaira = (num) => {
 
 export function DailyOperationsScreen() {
   const { theme } = useTheme();
+  const styles = createStyles(theme);
   const { selectedDate } = useDate();
 
   const [deliveries, setDeliveries] = useState([]);
@@ -175,7 +176,7 @@ export function DailyOperationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
   },
